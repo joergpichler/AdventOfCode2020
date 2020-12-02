@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
+using System.Linq;
 using System.Reflection;
+using Lib;
 
 namespace Day1
 {
@@ -9,40 +9,31 @@ namespace Day1
     {
         static void Main(string[] args)
         {
-            var expenses = new List<int>();
-
-            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Day1.input.txt"))
-            {
-                using (var reader = new StreamReader(stream))
-                {
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        expenses.Add(int.Parse(line));
-                    }
-                }
-            }
+             var expenses = Assembly.GetExecutingAssembly()
+                 .GetEmbeddedResourceLines("Day1.input.txt")
+                 .Select(s => int.Parse(s)).ToArray();
 
             Part1(expenses);
+
             Console.WriteLine();
+
             Part2(expenses);
         }
 
-        private static void Part1(List<int> expenses)
+        private static void Part1(int[] expenses)
         {
-            Console.WriteLine("PART 1");
-            Console.WriteLine("---------------------------");
+            ConsoleHelper.Part1();
 
             var solutionFound = false;
 
-            for (int i = 0; i < expenses.Count; i++)
+            for (int i = 0; i < expenses.Length; i++)
             {
                 if (solutionFound)
                 {
                     break;
                 }
 
-                for (int j = 0; j < expenses.Count; j++)
+                for (int j = 0; j < expenses.Length; j++)
                 {
                     if (solutionFound)
                     {
@@ -61,28 +52,27 @@ namespace Day1
             }
         }
 
-        private static void Part2(List<int> expenses)
+        private static void Part2(int[] expenses)
         {
-            Console.WriteLine("PART 2");
-            Console.WriteLine("---------------------------");
+            ConsoleHelper.Part2();
 
             var solutionFound = false;
 
-            for (int i = 0; i < expenses.Count; i++)
+            for (int i = 0; i < expenses.Length; i++)
             {
                 if (solutionFound)
                 {
                     break;
                 }
 
-                for (int j = 0; j < expenses.Count; j++)
+                for (int j = 0; j < expenses.Length; j++)
                 {
                     if (solutionFound)
                     {
                         break;
                     }
 
-                    for (int k = 0; k < expenses.Count; k++)
+                    for (int k = 0; k < expenses.Length; k++)
                     {
                         if (solutionFound)
                         {

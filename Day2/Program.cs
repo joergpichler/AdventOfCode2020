@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using Lib;
 
 namespace Day2
 {
@@ -11,36 +11,28 @@ namespace Day2
     {
         static void Main(string[] args)
         {
-            var passwordsWithRules = new List<PasswordWithRule>();
-
-            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Day2.input.txt"))
-            {
-                using (var reader = new StreamReader(stream))
-                {
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        passwordsWithRules.Add(PasswordWithRule.Parse(line));
-                    }
-                }
-            }
+            var passwordsWithRules = Assembly.GetExecutingAssembly()
+                .GetEmbeddedResourceLines("Day2.input.txt")
+                .Select(s => PasswordWithRule.Parse(s)).ToArray();
 
             Part1(passwordsWithRules);
+
             Console.WriteLine();
+
             Part2(passwordsWithRules);
         }
 
-        private static void Part1(List<PasswordWithRule> passwordsWithRules)
+        private static void Part1(IEnumerable<PasswordWithRule> passwordsWithRules)
         {
-            Console.WriteLine("PART 1");
-            Console.WriteLine("---------------------------");
+            ConsoleHelper.Part1();
+
             Console.WriteLine($"{passwordsWithRules.Count(p => p.IsValidPart1())} valid passwords");
         }
 
-        private static void Part2(List<PasswordWithRule> passwordsWithRules)
+        private static void Part2(IEnumerable<PasswordWithRule> passwordsWithRules)
         {
-            Console.WriteLine("PART 2");
-            Console.WriteLine("---------------------------");
+            ConsoleHelper.Part2();
+
             Console.WriteLine($"{passwordsWithRules.Count(p => p.IsValidPart2())} valid passwords");
         }
     }
@@ -56,7 +48,7 @@ namespace Day2
 
         public static bool IsValidPart2(this PasswordWithRule p)
         {
-            return (p.Password[p.Min - 1] == p.C && p.Password[p.Max - 1] != p.C) ||
+            return (p.Password[p.Min - 1] == p.C && p.Password[p.Max - 1] != p.C) ^ // XOR
                    (p.Password[p.Min - 1] != p.C && p.Password[p.Max - 1] == p.C);
         }
     }
