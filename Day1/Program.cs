@@ -9,88 +9,46 @@ namespace Day1
     {
         static void Main(string[] args)
         {
-             var expenses = Assembly.GetExecutingAssembly()
+             var moduleMasses = Assembly.GetExecutingAssembly()
                  .GetEmbeddedResourceLines("Day1.input.txt")
                  .Select(s => int.Parse(s)).ToArray();
 
-            Part1(expenses);
+            Part1(moduleMasses);
 
             Console.WriteLine();
 
-            Part2(expenses);
+            Part2(moduleMasses);
         }
 
-        private static void Part1(int[] expenses)
+        private static void Part1(int[] moduleMasses)
         {
             ConsoleHelper.Part1();
 
-            var solutionFound = false;
-
-            for (int i = 0; i < expenses.Length; i++)
-            {
-                if (solutionFound)
-                {
-                    break;
-                }
-
-                for (int j = 0; j < expenses.Length; j++)
-                {
-                    if (solutionFound)
-                    {
-                        break;
-                    }
-
-                    if (expenses[i] + expenses[j] == 2020)
-                    {
-                        solutionFound = true;
-
-                        Console.WriteLine($"Found i = {i}: {expenses[i]} j = {j}: {expenses[j]}");
-
-                        Console.WriteLine($"Multiplication result: {expenses[i] * expenses[j]}");
-                    }
-                }
-            }
+            Console.WriteLine($"Required fuel: {moduleMasses.Select(m => CalculateFuelRequirement(m, false)).Sum()}");
         }
 
-        private static void Part2(int[] expenses)
+        private static void Part2(int[] moduleMasses)
         {
             ConsoleHelper.Part2();
 
-            var solutionFound = false;
+            Console.WriteLine($"Required fuel: {moduleMasses.Select(m => CalculateFuelRequirement(m, true)).Sum()}");
+        }
 
-            for (int i = 0; i < expenses.Length; i++)
+        private static int CalculateFuelRequirement(int mass, bool recursive)
+        {
+            var requiredFuel = (int) Math.Floor(mass / 3.0) - 2;
+
+            if (!recursive)
             {
-                if (solutionFound)
-                {
-                    break;
-                }
-
-                for (int j = 0; j < expenses.Length; j++)
-                {
-                    if (solutionFound)
-                    {
-                        break;
-                    }
-
-                    for (int k = 0; k < expenses.Length; k++)
-                    {
-                        if (solutionFound)
-                        {
-                            break;
-                        }
-
-                        if (expenses[i] + expenses[j] + expenses[k] == 2020)
-                        {
-                            solutionFound = true;
-
-                            Console.WriteLine(
-                                $"Found i = {i}: {expenses[i]} j = {j}: {expenses[j]} k = {k}: {expenses[k]}");
-
-                            Console.WriteLine($"Multiplication result: {expenses[i] * expenses[j] * expenses[k]}");
-                        }
-                    }
-                }
+                return requiredFuel;
             }
+
+            if (requiredFuel <= 0)
+            {
+                return 0;
+            }
+
+            return requiredFuel + CalculateFuelRequirement(requiredFuel, true);
         }
     }
 }

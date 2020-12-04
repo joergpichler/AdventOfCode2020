@@ -11,78 +11,90 @@ namespace Day2
     {
         static void Main(string[] args)
         {
-            var passwordsWithRules = Assembly.GetExecutingAssembly()
-                .GetEmbeddedResourceLines("Day2.input.txt")
-                .Select(s => PasswordWithRule.Parse(s)).ToArray();
+            var memory = Assembly.GetExecutingAssembly()
+                .GetEmbeddedResourceLines("Day2.input.txt").Single()
+                .Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => int.Parse(x)).ToArray();
 
-            Part1(passwordsWithRules);
+            Part1(memory);
 
             Console.WriteLine();
 
-            Part2(passwordsWithRules);
+            Part2(memory);
         }
 
-        private static void Part1(IEnumerable<PasswordWithRule> passwordsWithRules)
+        private static void Part1(int[] memory)
         {
             ConsoleHelper.Part1();
 
-            Console.WriteLine($"{passwordsWithRules.Count(p => p.IsValidPart1())} valid passwords");
+            int[] copy = new int[memory.Length];
+            Array.Copy(memory, copy, memory.Length);
+
+            copy[1] = 12;
+            copy[2] = 2;
+
+            RunMachine(copy);
+
+            Console.WriteLine($"Value at position 0: {copy[0]}");
         }
 
-        private static void Part2(IEnumerable<PasswordWithRule> passwordsWithRules)
+
+        private static void Part2(int[] memory)
         {
             ConsoleHelper.Part2();
 
-            Console.WriteLine($"{passwordsWithRules.Count(p => p.IsValidPart2())} valid passwords");
-        }
-    }
-
-    internal static class PasswordWithRuleExtensionMethods
-    {
-        public static bool IsValidPart1(this PasswordWithRule p)
-        {
-            var charCount = p.Password.Count(c => c == p.C);
-
-            return charCount >= p.Min && charCount <= p.Max;
-        }
-
-        public static bool IsValidPart2(this PasswordWithRule p)
-        {
-            return (p.Password[p.Min - 1] == p.C && p.Password[p.Max - 1] != p.C) ^ // XOR
-                   (p.Password[p.Min - 1] != p.C && p.Password[p.Max - 1] == p.C);
-        }
-    }
-
-    internal class PasswordWithRule
-    {
-        private static readonly Regex Regex = new Regex("(?<min>\\d+)-(?<max>\\d+)\\s(?<char>[a-z]):\\s(?<password>[a-z]+)", RegexOptions.Compiled);
-
-        private PasswordWithRule(string password, int min, int max, char c)
-        {
-            Password = password;
-            Min = min;
-            Max = max;
-            C = c;
-        }
-
-        public string Password { get; }
-
-        public int Min { get; }
-
-        public int Max { get; }
-
-        public char C { get; }
-
-        public static PasswordWithRule Parse(string s)
-        {
-            var match = Regex.Match(s);
-
-            if (!match.Success)
+            for (int noun = 0; noun < 100; noun++)
             {
-                throw new InvalidOperationException($"Expected to be able to parse '{s}' ");
-            }
+                int[] copy = new int[memory.Length];
 
-            return new PasswordWithRule(match.Groups["password"].Value, int.Parse(match.Groups["min"].Value), int.Parse(match.Groups["max"].Value), match.Groups["char"].Value[0]);
+                for (var verb = 0; verb < 100; verb++)
+                {
+                    Array.Copy(memory, copy, memory.Length);
+
+                    copy[1] = noun;
+                    copy[2] = verb;
+
+                    RunMachine(copy);
+
+                    if (copy[0] == 19690720)
+                    {
+                        Console.WriteLine($"Solution found! Noun: {noun} Verb: {verb} Result: {100 * noun + verb}");
+                        break;
+                    }
+                }
+
+                if (copy[0] == 19690720)
+                {
+                    break;
+                }
+            }
+        }
+
+        private static void RunMachine(int[] memory)
+        {
+            int ptr = 0;
+
+            while (memory[ptr] != 99) // stop code
+            {
+                int operand1 = memory[memory[ptr + 1]];
+                int operand2 = memory[memory[ptr + 2]];
+                int result;
+
+                switch (memory[ptr])
+                {
+                    case 1:
+                        result = operand1 + operand2;
+                        break;
+                    case 2:
+                        result = operand1 * operand2;
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                memory[memory[ptr + 3]] = result;
+
+                ptr += 4;
+            }
         }
     }
 }
