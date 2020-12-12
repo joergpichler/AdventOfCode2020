@@ -224,13 +224,7 @@ namespace Day12
         private void RotateWaypoint(int degrees)
         {
             var hypotenuse = Math.Sqrt(_waypointX * _waypointX + _waypointY * _waypointY);
-            var angle = Math.Atan((double) _waypointY / _waypointX);
-
-            // need to correct angle in quadrant 2 & 3
-            if (_waypointX < 0)
-            {
-                angle += Math.PI;
-            }
+            var angle = Math.Atan2(_waypointY, _waypointX);
 
             var newAngle = angle + ((double) degrees / 360 * 2 * Math.PI);
 
