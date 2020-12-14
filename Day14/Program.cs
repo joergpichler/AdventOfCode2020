@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using Lib;
 using ArgumentOutOfRangeException = System.ArgumentOutOfRangeException;
@@ -17,19 +18,22 @@ namespace Day14
 
             var instructions = lines.Select(l => Instruction.Parse(l)).ToList();
 
-            Part1(instructions);
+            ConsoleHelper.Part1();
+            RunVirtualMachine(new VirtualMachineV1(), instructions);
+
+            Console.WriteLine();
+
+            ConsoleHelper.Part2();
+            RunVirtualMachine(new VirtualMachineV2(), instructions);
         }
 
-        private static void Part1(IEnumerable<Instruction> instructions)
+        private static void RunVirtualMachine(VirtualMachine machine, IEnumerable<Instruction> instructions)
         {
-            var machine = new VirtualMachine();
-
             foreach (var instruction in instructions)
             {
                 machine.Execute(instruction);
             }
 
-            ConsoleHelper.Part1();
             Console.WriteLine($"Sum of values in memory: {machine.GetSumOfValuesInMemory()}");
         }
     }
@@ -42,7 +46,7 @@ namespace Day14
             Bitmask = bitmask;
         }
 
-        public Instruction(int location, ulong value)
+        public Instruction(ulong location, ulong value)
         {
             InstructionType = InstructionType.SetMemoryValue;
             Location = location;
@@ -53,7 +57,7 @@ namespace Day14
 
         public string Bitmask { get; }
 
-        public int Location { get; }
+        public ulong Location { get; }
 
         public ulong Value { get; }
 
@@ -83,7 +87,7 @@ namespace Day14
 
             if (memoryMatch.Success)
             {
-                return new Instruction(int.Parse(memoryMatch.Groups["location"].Value), ulong.Parse(memoryMatch.Groups["value"].Value));
+                return new Instruction(ulong.Parse(memoryMatch.Groups["location"].Value), ulong.Parse(memoryMatch.Groups["value"].Value));
             }
 
             throw new InvalidOperationException();
@@ -96,10 +100,10 @@ namespace Day14
         SetMemoryValue
     }
 
-    internal class VirtualMachine
+    internal abstract class VirtualMachine
     {
-        private readonly Dictionary<int, ulong> _memory = new Dictionary<int, ulong>();
-        private string _bitmask;
+        protected readonly Dictionary<ulong, ulong> Memory = new Dictionary<ulong, ulong>();
+        protected string Bitmask;
 
         public void Execute(Instruction instruction)
         {
@@ -116,21 +120,17 @@ namespace Day14
             }
         }
 
-        private void SetBitmask(string bitmask)
+        protected virtual void SetBitmask(string bitmask)
         {
-            _bitmask = bitmask;
+            Bitmask = bitmask;
         }
 
-        private void SetMemoryValue(int location, ulong value)
-        {
-            var maskedValue = ApplyBitmask(value);
-            _memory[location] = maskedValue;
-        }
+        protected abstract void SetMemoryValue(ulong location, ulong value);
 
-        private ulong ApplyBitmask(ulong value)
+        protected static ulong ApplyBitmask(ulong value, string bitmask, bool flipZeroes)
         {
-            var reverseBitmask = new string(_bitmask.Reverse().ToArray());
-            
+            var reverseBitmask = new string(bitmask.Reverse().ToArray());
+
             ulong ones = 0;
             ulong zeroes = ulong.MaxValue;
 
@@ -143,7 +143,10 @@ namespace Day14
                         ones |= ((ulong)1 << i);
                         break;
                     case '0':
-                        zeroes &= ~((ulong)1 << i);
+                        if (flipZeroes)
+                        {
+                            zeroes &= ~((ulong)1 << i);
+                        }
                         break;
                     case 'X':
                         break;
@@ -162,12 +165,73 @@ namespace Day14
         {
             BigInteger sum = 0;
 
-            foreach (var value in _memory.Values)
+            foreach (var value in Memory.Values)
             {
                 sum += value;
             }
 
             return sum;
+        }
+    }
+
+    internal class VirtualMachineV1 : VirtualMachine
+    {
+        protected override void SetMemoryValue(ulong location, ulong value)
+        {
+            var maskedValue = ApplyBitmask(value, Bitmask, true);
+            Memory[location] = maskedValue;
+        }
+    }
+
+    internal class VirtualMachineV2 : VirtualMachine
+    {
+        protected override void SetMemoryValue(ulong location, ulong value)
+        {
+            var patchedLocation = ApplyBitmask(location, Bitmask, false);
+
+            foreach (var floatingLocation in GetFloatingLocations(patchedLocation, Bitmask))
+            {
+                Memory[floatingLocation] = value;
+            }
+        }
+
+        private IEnumerable<ulong> GetFloatingLocations(ulong location, string bitmask)
+        {
+            var count = bitmask.Count(c => c == 'X');
+
+            foreach (var bits in GetBitVariations(count))
+            {
+                yield return ApplyBitmask(location, PatchBitmask(Bitmask, bits), true);
+            }
+        }
+
+        private static IEnumerable<string> GetBitVariations(int depth)
+        {
+            var maxNum = 1 << (depth);
+            for (int i = 0; i < maxNum; i++)
+            {
+                yield return Convert.ToString(i, 2).PadLeft(depth, '0');
+            }
+        }
+
+        private string PatchBitmask(string bitmask, string bits)
+        {
+            var sb = new StringBuilder("".PadLeft(bitmask.Length, '0'));
+
+            int j = 0;
+            for (int i = 0; i < bitmask.Length; i++)
+            {
+                if (bitmask[i] == 'X')
+                {
+                    sb[i] = bits[j++];
+                }
+                else
+                {
+                    sb[i] = 'X';
+                }
+            }
+
+            return sb.ToString();
         }
     }
 }
