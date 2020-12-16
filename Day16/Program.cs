@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -14,21 +15,90 @@ namespace Day16
             var data = Parse(Assembly.GetExecutingAssembly().GetEmbeddedResourceLines("Day16.input.txt"));
 
             Part1(data.rules, data.tickets);
+            
+            Console.WriteLine();
+
+            Part2(data.rules, data.myTicket, data.tickets);
         }
 
         private static void Part1(IEnumerable<Rule> rules, IEnumerable<Ticket> tickets)
         {
-            int errorRate = tickets.Sum(ticket => ticket.Numbers.Where(n => !IsNumberValid(n, rules)).Sum());
+            int errorRate = 0;
+            
+            foreach (var invalidTicket in tickets.Where(t => !t.IsValid(rules)))
+            {
+                var invalidNumbers = invalidTicket.Numbers.Where(n => rules.All(r => !r.IsNumberValid(n))).Sum();
+                errorRate += invalidNumbers;
+            }
 
             ConsoleHelper.Part1();
             Console.WriteLine($"Ticket scanning error rate: {errorRate}");
         }
 
-        private static bool IsNumberValid(int number, IEnumerable<Rule> rules)
+        private static void Part2(IEnumerable<Rule> rules, Ticket myTicket, IEnumerable<Ticket> tickets)
         {
-            return rules.SelectMany(rule => rule.Ranges).Any(range => range.From <= number && range.To >= number);
+            var validTickets = new List<Ticket>() { myTicket };
+            
+            validTickets.AddRange(tickets.Where(t => t.IsValid(rules)));
+
+            var rulesForColumns = GetRulesMatchingToColumns(rules, validTickets);
+
+            List<int> relevantNumbersOnTicket = new();
+            
+            for (int i = 0; i < rulesForColumns.Length; i++)
+            {
+                var rule = rulesForColumns[i];
+
+                if (!rule.Field.StartsWith("departure"))
+                {
+                    continue;
+                }
+                
+                relevantNumbersOnTicket.Add(myTicket.Numbers[i]);
+            }
+            
+            ConsoleHelper.Part2();
+            Console.WriteLine($"Multiplication result: {relevantNumbersOnTicket.Select(n => (ulong) n).Aggregate((a, b) => a * b)}");
         }
 
+        private static Rule[] GetRulesMatchingToColumns(IEnumerable<Rule> rules, List<Ticket> validTickets)
+        {
+            var myTicket = validTickets[0];
+            var rulesForColumns = new Rule[myTicket.Numbers.Length];
+
+            var rulesToDistribute = rules.ToList();
+
+            while (rulesToDistribute.Any())
+            {
+                for (var i = 0; i < myTicket.Numbers.Length; i++)
+                {
+                    if (rulesForColumns[i] != null)
+                    {
+                        continue;
+                    }
+
+                    var numbersAtPosInAllTickets = validTickets.Select(t => t.Numbers[i]);
+
+                    var matchingRules = FindMatchingRules(numbersAtPosInAllTickets, rulesToDistribute).ToList();
+
+                    if (matchingRules.Count == 1)
+                    {
+                        var matchingRule = matchingRules.Single();
+                        rulesForColumns[i] = matchingRule;
+                        rulesToDistribute.Remove(matchingRule);
+                    }
+                }
+            }
+
+            return rulesForColumns;
+        }
+
+        private static IEnumerable<Rule> FindMatchingRules(IEnumerable<int> numbers, IEnumerable<Rule> rules)
+        {
+            return rules.Where(r => numbers.All(n => r.IsNumberValid(n)));
+        }
+
+        [DebuggerDisplay("{Field}")]
         internal class Rule
         {
             public Rule(string field, Range[] ranges)
@@ -40,6 +110,11 @@ namespace Day16
             public string Field { get; }
 
             public IEnumerable<Range> Ranges { get; }
+
+            public bool IsNumberValid(int number)
+            {
+                return Ranges.Any(range => range.From <= number && range.To >= number);
+            }
         }
 
         internal class Range
@@ -69,11 +144,16 @@ namespace Day16
                 Numbers = numbers;
             }
 
-            public IEnumerable<int> Numbers { get; }
+            public int[] Numbers { get; }
 
             public static Ticket Parse(string s)
             {
                 return new(s.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToArray());
+            }
+
+            public bool IsValid(IEnumerable<Rule> rules)
+            {
+                return Numbers.All(n => rules.Any(r => r.IsNumberValid(n)));
             }
         }
         
