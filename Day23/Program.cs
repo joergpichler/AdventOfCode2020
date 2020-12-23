@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using Lib;
@@ -13,18 +14,37 @@ namespace Day23
             const string testInput = "389125467";
             const string input = "643719258";
 
-            var cups = testInput.Select(c => int.Parse(c.ToString())).ToArray();
-
-            Part1(cups);
+            string inputToParse = input;
+            
+            Part1(ParseInput(inputToParse));
             
             Console.WriteLine();
 
-            Part2(cups);
+            Part2(ParseInput(inputToParse));
         }
 
-        private static void Part1(int[] cups)
+        private static Cup ParseInput(string input)
         {
-            var game = new CupGame(cups);
+            var cups = input.Select(c => new Cup(int.Parse(c.ToString()))).ToArray();
+
+            for (var i = 0; i < cups.Length; i++)
+            {
+                if (i == cups.Length - 1)
+                {
+                    cups[i].Next = cups[0];
+                }
+                else
+                {
+                    cups[i].Next = cups[i + 1];
+                }
+            }
+
+            return cups[0];
+        }
+
+        private static void Part1(Cup firstCup)
+        {
+            var game = new CupGame(firstCup);
 
             for (int i = 0; i < 100; i++)
             {
@@ -46,9 +66,9 @@ namespace Day23
             Console.WriteLine($"Result: {game.GetResultPt1()}");
         }
 
-        private static void Part2(int[] cups)
+        private static void Part2(Cup firstCup)
         {
-            var game = new CupGame(cups, true);
+            var game = new CupGame(firstCup, true);
 
             for (int i = 0; i < 10000000; i++)
             {
@@ -62,26 +82,51 @@ namespace Day23
 
     class CupGame
     {
-        private readonly List<int> _cups;
-        private int _currentCup;
+        private Cup _currentCup;
         private int _currentMove = 0;
+        private readonly Dictionary<int, Cup> _labelToCup = new Dictionary<int, Cup>();
+        private readonly int _minLabel;
+        private readonly int _maxLabel;
 
-        public CupGame(int[] cups, bool part2 = false)
+        public CupGame(Cup firstCup, bool part2 = false)
         {
-            _cups = cups.ToList();
-            _currentCup = cups[0];
+            _currentCup = firstCup;
+
+            var cup = firstCup;
+            do
+            {
+                _labelToCup[cup.Label] = cup;
+                cup = cup.Next;
+            } while (cup != firstCup);
 
             if (part2)
             {
-                var startingNumber = _cups.Max() + 1;
-
-                for (int i = _cups.Count; i < 1000000; i++)
+                Cup lastCup = null;
+                var tmpCup = firstCup;
+                while (lastCup == null)
                 {
-                    _cups.Add(startingNumber);
+                    if (tmpCup.Next == firstCup)
+                    {
+                        lastCup = tmpCup;
+                    }
 
-                    startingNumber += 1;
+                    tmpCup = tmpCup.Next;
                 }
+
+                var cupNo = _labelToCup.Keys.Max() + 1;
+                for (int i = _labelToCup.Count; i < 1000000; i++)
+                {
+                    var newCup = new Cup(cupNo++);
+                    _labelToCup[newCup.Label] = newCup;
+                    lastCup.Next = newCup;
+                    lastCup = newCup;
+                }
+
+                lastCup.Next = firstCup;
             }
+
+            _minLabel = _labelToCup.Keys.Min();
+            _maxLabel = _labelToCup.Keys.Max();
         }
 
         public bool IsDebug { get; set; } = false;
@@ -91,58 +136,61 @@ namespace Day23
             _currentMove += 1;
             
             // remove cups
-            var removedCups = new int[3];
-            var indicesToRemove = new int[3];
-            var currentCupIndex = _cups.IndexOf(_currentCup);
-            for (int i = 0; i < 3; i++)
+            var removedCups = new Cup[]
             {
-                var index = (currentCupIndex + i + 1) % _cups.Count;
-                removedCups[i] = _cups[index];
-                _cups[index] = -1;
-                indicesToRemove[i] = index;
-            }
+                _currentCup.Next, _currentCup.Next.Next, _currentCup.Next.Next.Next
+            };
 
-            foreach (var indexToRemove in indicesToRemove.OrderByDescending(i => i))
-            {
-                _cups.RemoveAt(indexToRemove);
-            }
+            _currentCup.Next = removedCups[2].Next;
+            removedCups[2].Next = removedCups[0];
 
             if (IsDebug)
             {
-                Console.WriteLine($"pick up: {removedCups.Select(i => i.ToString()).Aggregate((a, b) => $"{a}, {b}")}");
+                Console.WriteLine($"pick up: {removedCups.Select(i => i.Label.ToString()).Aggregate((a, b) => $"{a}, {b}")}");
             }
             
             // find destination cup
-            var destinationCup = _currentCup - 1;
-            while (!_cups.Contains(destinationCup))
+            var destinationCupLabel = _currentCup.Label - 1;
+            Cup destinationCup = null;
+            
+            while (destinationCup == null)
             {
-                destinationCup -= 1;
-                if (destinationCup < _cups.Min())
+                if (_labelToCup.TryGetValue(destinationCupLabel, out var tmpCup) && !removedCups.Contains(tmpCup))
                 {
-                    destinationCup = _cups.Max();
+                    destinationCup = tmpCup;
+                }
+                
+                destinationCupLabel -= 1;
+                if (destinationCupLabel < _minLabel)
+                {
+                    destinationCupLabel = _maxLabel;
                 }
             }
 
             if (IsDebug)
             {
-                Console.WriteLine($"destination: {destinationCup}");
+                Console.WriteLine($"destination: {destinationCup.Label}");
             }
 
-            var destinationCupIndex = _cups.IndexOf(destinationCup);
+            // insert removed Cups
+            var tmpCup2 = destinationCup.Next;
+            destinationCup.Next = removedCups[0];
+            removedCups[2].Next = tmpCup2;
 
-            _cups.InsertRange(destinationCupIndex + 1, removedCups);
-
-            _currentCup = _cups[(_cups.IndexOf(_currentCup) + 1) % _cups.Count];
+            _currentCup = _currentCup.Next;
         }
 
         public string GetResultPt1()
         {
             var sb = new StringBuilder();
-            
-            var indexOfOne = _cups.IndexOf(1);
-            for (int i = 1; i < _cups.Count; i++)
+
+            var endCup = _labelToCup[1];
+            var cup = endCup.Next;
+
+            while (cup != endCup)
             {
-                sb.Append(_cups[(indexOfOne + i) % _cups.Count]);
+                sb.Append(cup.Label);
+                cup = cup.Next;
             }
 
             return sb.ToString();
@@ -150,36 +198,43 @@ namespace Day23
 
         public string GetResultPt2()
         {
-            var sb = new StringBuilder();
+            var cup = _labelToCup[1];
 
-            var indexOfOne = _cups.IndexOf(1);
-            long[] vals = new long[2];
-            for (int i = 0; i < 2; i++)
-            {
-                vals[i] = (long) _cups[(indexOfOne + i) % _cups.Count];
-            }
-
-            return (vals[0] * vals[1]).ToString();
+            return ((long) cup.Next.Label * (long) cup.Next.Next.Label).ToString();
         }
 
         public override string ToString()
         {
             var sb = new StringBuilder("cups: ");
 
-            for (int i = 0; i < _cups.Count; i++)
+            var cup = _currentCup;
+            do
             {
-                var cup = _cups[i];
-                if (_currentCup == cup)
+                if (cup == _currentCup)
                 {
-                    sb.Append($"({cup}) ");
+                    sb.Append($"({cup.Label}) ");
                 }
                 else
                 {
-                    sb.Append($"{cup} ");
+                    sb.Append($"{cup.Label} ");
                 }
-            }
+                cup = cup.Next;
+            } while (cup != _currentCup);
             
             return sb.ToString().Trim();
         }
+    }
+
+    [DebuggerDisplay("{Label}")]
+    class Cup
+    {
+        public Cup(int label)
+        {
+            Label = label;
+        }
+
+        public int Label { get; }
+        
+        public Cup Next { get; set; }
     }
 }
