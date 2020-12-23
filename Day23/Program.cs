@@ -13,11 +13,19 @@ namespace Day23
             const string testInput = "389125467";
             const string input = "643719258";
 
+            var cups = testInput.Select(c => int.Parse(c.ToString())).ToArray();
 
-            var game = new CupGame(input.Select(c => int.Parse(c.ToString())).ToArray());
-
-            game.IsDebug = false;
+            Part1(cups);
             
+            Console.WriteLine();
+
+            Part2(cups);
+        }
+
+        private static void Part1(int[] cups)
+        {
+            var game = new CupGame(cups);
+
             for (int i = 0; i < 100; i++)
             {
                 if (game.IsDebug)
@@ -25,7 +33,7 @@ namespace Day23
                     Console.WriteLine($"-- move {i + 1} --");
                     Console.WriteLine(game.ToString());
                 }
-                
+
                 game.Round();
 
                 if (game.IsDebug)
@@ -33,9 +41,22 @@ namespace Day23
                     Console.ReadLine();
                 }
             }
-            
+
             ConsoleHelper.Part1();
-            Console.WriteLine($"Result: {game.GetResult()}");
+            Console.WriteLine($"Result: {game.GetResultPt1()}");
+        }
+
+        private static void Part2(int[] cups)
+        {
+            var game = new CupGame(cups, true);
+
+            for (int i = 0; i < 10000000; i++)
+            {
+                game.Round();
+            }
+
+            ConsoleHelper.Part1();
+            Console.WriteLine($"Result: {game.GetResultPt2()}");
         }
     }
 
@@ -45,13 +66,25 @@ namespace Day23
         private int _currentCup;
         private int _currentMove = 0;
 
-        public CupGame(int[] cups)
+        public CupGame(int[] cups, bool part2 = false)
         {
             _cups = cups.ToList();
             _currentCup = cups[0];
+
+            if (part2)
+            {
+                var startingNumber = _cups.Max() + 1;
+
+                for (int i = _cups.Count; i < 1000000; i++)
+                {
+                    _cups.Add(startingNumber);
+
+                    startingNumber += 1;
+                }
+            }
         }
 
-        public bool IsDebug { get; set; }
+        public bool IsDebug { get; set; } = false;
 
         public void Round()
         {
@@ -59,15 +92,20 @@ namespace Day23
             
             // remove cups
             var removedCups = new int[3];
+            var indicesToRemove = new int[3];
             var currentCupIndex = _cups.IndexOf(_currentCup);
             for (int i = 0; i < 3; i++)
             {
                 var index = (currentCupIndex + i + 1) % _cups.Count;
                 removedCups[i] = _cups[index];
                 _cups[index] = -1;
+                indicesToRemove[i] = index;
             }
 
-            _cups.RemoveAll(i => i == -1);
+            foreach (var indexToRemove in indicesToRemove.OrderByDescending(i => i))
+            {
+                _cups.RemoveAt(indexToRemove);
+            }
 
             if (IsDebug)
             {
@@ -97,7 +135,7 @@ namespace Day23
             _currentCup = _cups[(_cups.IndexOf(_currentCup) + 1) % _cups.Count];
         }
 
-        public string GetResult()
+        public string GetResultPt1()
         {
             var sb = new StringBuilder();
             
@@ -108,6 +146,20 @@ namespace Day23
             }
 
             return sb.ToString();
+        }
+
+        public string GetResultPt2()
+        {
+            var sb = new StringBuilder();
+
+            var indexOfOne = _cups.IndexOf(1);
+            long[] vals = new long[2];
+            for (int i = 0; i < 2; i++)
+            {
+                vals[i] = (long) _cups[(indexOfOne + i) % _cups.Count];
+            }
+
+            return (vals[0] * vals[1]).ToString();
         }
 
         public override string ToString()
