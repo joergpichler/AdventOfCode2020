@@ -20,6 +20,12 @@ namespace Day22
             var input = ParseInput(stringBuilder.ToString());
 
             Part1(input.deckA, input.deckB);
+
+            Console.WriteLine();
+
+            input = ParseInput(stringBuilder.ToString());
+
+            Part2(input.deckA, input.deckB);
         }
 
         private static void Part1(Deck deckA, Deck deckB)
@@ -28,6 +34,15 @@ namespace Day22
             var winningDeck = game.Play();
             
             ConsoleHelper.Part1();
+            Console.WriteLine($"Score: {winningDeck.GetScore()}");
+        }
+
+        private static void Part2(Deck deckA, Deck deckB)
+        {
+            var game = new RecursiveCombatCardGame(deckA, deckB);
+            var winningDeck = game.Play();
+
+            ConsoleHelper.Part2();
             Console.WriteLine($"Score: {winningDeck.GetScore()}");
         }
 
@@ -45,6 +60,76 @@ namespace Day22
             var deckB = ParseMatch(matches[1]);
 
             return (deckA, deckB);
+        }
+    }
+
+    class RecursiveCombatCardGame
+    {
+        private readonly Deck _deckA;
+        private readonly Deck _deckB;
+        private readonly HashSet<int> _deckAHashes = new();
+        private readonly HashSet<int> _deckBHashes = new();
+
+        public RecursiveCombatCardGame(Deck deckA, Deck deckB)
+        {
+            _deckA = deckA;
+            _deckB = deckB;
+        }
+
+        public Deck Play()
+        {
+            int round = 0;
+
+            while (_deckA.CardCount > 0 && _deckB.CardCount > 0)
+            {
+                round += 1;
+
+                if (_deckAHashes.Contains(_deckA.GetHashCode()) && _deckBHashes.Contains(_deckB.GetHashCode()))
+                {
+                    return _deckA;
+                }
+
+                _deckAHashes.Add(_deckA.GetHashCode());
+                _deckBHashes.Add(_deckB.GetHashCode());
+
+                var cardA = _deckA.DrawCard();
+                var cardB = _deckB.DrawCard();
+
+                if (_deckA.CardCount >= cardA.Value && _deckB.CardCount >= cardB.Value)
+                {
+                    var subDeckA = _deckA.Clone(cardA.Value);
+                    var subDeckB = _deckB.Clone(cardB.Value);
+
+                    var subGame = new RecursiveCombatCardGame(subDeckA, subDeckB);
+                    var winningDeck = subGame.Play();
+
+                    if (winningDeck == subDeckA)
+                    {
+                        _deckA.AddCards(cardA, cardB);
+                    }
+                    else
+                    {
+                        _deckB.AddCards(cardB, cardA);
+                    }
+                }
+                else
+                {
+                    if (cardA.Value > cardB.Value)
+                    {
+                        _deckA.AddCards(cardA, cardB);
+                    }
+                    else if (cardB.Value > cardA.Value)
+                    {
+                        _deckB.AddCards(cardB, cardA);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException();
+                    }
+                }
+            }
+
+            return _deckA.CardCount > 0 ? _deckA : _deckB;
         }
     }
 
@@ -148,9 +233,20 @@ namespace Day22
             return score;
         }
 
+        public Deck Clone(int cardCount)
+        {
+            return new Deck(_cards.Take(cardCount));
+        }
+
         public override string ToString()
         {
             return _cards.Select(c => c.Value.ToString()).Aggregate((a, b) => a + ", " + b);
+        }
+
+        public override int GetHashCode()
+        {
+            return _cards.Select((card, index) => HashCode.Combine(index, card.Value))
+                .Aggregate((a, b) => HashCode.Combine(a, b));
         }
     }
     

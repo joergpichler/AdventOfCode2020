@@ -8,6 +8,7 @@
   <ItemGroup>
     <EmbeddedResource Include="input.txt" />
     <EmbeddedResource Include="test.input.txt" />
+    <EmbeddedResource Include="test2.input.txt" />
   </ItemGroup>
 
   <ItemGroup>
